@@ -102,7 +102,7 @@ const Page = async ({ params }: RouteParams) => {
           </Link>
         </Button>
 
-        <RetakeInterviewButton interviewId={id!} userId={user?.id!} />
+        <RetakeInterviewButton interviewId={id!} />
       </div>
     </section>
   );

@@ -66,16 +66,6 @@ interface GetFeedbackByInterviewIdParams {
   userId: string;
 }
 
-interface RetakeInterview {
-  interviewId: string;
-  userId: string;
-}
-
-interface NewInterviewInstance {
-  success: boolean;
-  id: string;
-}
-
 interface GetLatestInterviewsParams {
   userId: string;
   limit?: number;
