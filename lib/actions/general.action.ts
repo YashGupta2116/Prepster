@@ -45,7 +45,7 @@ export async function getInterviewById(id: string): Promise<Interview | null> {
   return interviews.data() as Interview | null;
 }
 
-export async function cerateFeedback(params: CreateFeedbackParams) {
+export async function createFeedback(params: CreateFeedbackParams) {
   const { interviewId, userId, transcript } = params;
 
   try {
@@ -125,4 +125,33 @@ export async function getFeedbackByInterviewId(
     id: feedbackDoc.id,
     ...feedbackDoc.data(),
   } as Feedback;
+}
+
+export async function retakeInterview(
+  params: RetakeInterview
+): Promise<NewInterviewInstance | null> {
+  const { interviewId, userId } = params;
+
+  const prevInterview = await getInterviewById(interviewId);
+
+  const newInterview = {
+    role: prevInterview?.role!,
+    type: prevInterview?.type!,
+    level: prevInterview?.level!,
+    techstack: prevInterview?.techstack || [],
+    questions: prevInterview?.questions || [],
+    userId: userId,
+    finalized: false,
+    coverImage: '/covers/facebook.png',
+    createdAt: new Date().toISOString(),
+  };
+
+  const newInterviewInstance = await db
+    .collection('interviews')
+    .add(newInterview);
+
+  return {
+    success: true,
+    id: newInterviewInstance?.id,
+  } as NewInterviewInstance | null;
 }
