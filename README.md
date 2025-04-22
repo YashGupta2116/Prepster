@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+🧠 Prepster – AI-Powered Mock Interview Platform
 
-## Getting Started
+Live Demo: prepster-ivory.vercel.app
 
-First, run the development server:
+🚀 Overview
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Prepster is an AI-driven mock interview app that simulates real interview experiences. Whether you’re prepping for a frontend role, data science, or system design, Prepster customises the entire interview based on a short questionnaire, then interviews an AI voice agent using Vapi. Afterwards, you get structured feedback and can even retake the interview.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+🧩 Key Features
+	•	🎯 Dynamic Interview Generator: Select the type of interview (e.g., React, DSA, System Design) and get a personalised session instantly.
+	•	🎤 AI Voice Interviews: Conduct live mock interviews through an AI agent powered by Vapi.
+	•	🧠 Detailed Feedback: Receive personalised feedback after each session to improve your answers.
+	•	♻️ Retake Option: Retry interviews to track your improvement over time.
+	•	🌐 Community-Generated Interviews: View and attempt interviews taken by other users in the system.
+	•	🔒 Auth + Database: Firebase authentication and Firestore for real-time data.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+⚙️ Tech Stack
+	•	Next.js (with TypeScript) – frontend & server-side logic
+	•	Tailwind CSS + Shadcn UI – sleek, responsive design system
+	•	Firebase (Auth + Firestore) – user management and DB
+	•	Vapi.ai – voice interview agent integration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Screenshots :
+<img width="1582" alt="image" src="https://github.com/user-attachments/assets/ccad1cbc-4f6d-454e-9da9-89cf4e4566ca" />
 
-## Learn More
+<img width="1582" alt="image" src="https://github.com/user-attachments/assets/c48ec9df-dcac-4c3a-be33-60e3c2556d70" />
 
-To learn more about Next.js, take a look at the following resources:
+<img width="1582" alt="image" src="https://github.com/user-attachments/assets/2149e219-5c08-48bd-b784-a4e464fdb2a3" />
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+<img width="1582" alt="image" src="https://github.com/user-attachments/assets/41d637d4-e20f-43cf-812e-39e5c0e0e02a" />
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
