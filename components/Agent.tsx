@@ -110,15 +110,13 @@ const Agent = ({
     if (type === "generate") {
       await vapi.start(
         undefined,
-        undefined,
-        process.env.NEXT_PUBLIC_VAPI_SQUAD_ID!,
-        undefined,
         {
           variableValues: {
             username: userName,
             userid: userId,
           },
         },
+        process.env.NEXT_PUBLIC_VAPI_SQUAD_ID!,
       );
     } else {
       let formattedQuestions = "";
