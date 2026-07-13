@@ -1,3 +1,4 @@
+export const maxDuration = 60;
 import { generateText } from "ai";
 import { google } from "@/lib/utils";
 
