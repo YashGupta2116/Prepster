@@ -1,17 +1,19 @@
-'use server';
+"use server";
 
-import { feedbackSchema } from '@/constants';
-import { db } from '@/firebase/admin';
-import { google } from '@ai-sdk/google';
-import { generateObject } from 'ai';
+import { feedbackSchema } from "@/constants";
+import { adminDb as db } from "@/firebase/admin";
+import { google } from "@/lib/utils";
+import { generateText, Output } from "ai";
 
 export async function getInerviewsByUserId(
-  userId: string
+  userId: string,
 ): Promise<Interview[] | null> {
+  if (!userId) return null;
+
   const interviews = await db
-    .collection('interviews')
-    .where('userId', '==', userId)
-    .orderBy('createdAt', 'desc')
+    .collection("interviews")
+    .where("userId", "==", userId)
+    .orderBy("createdAt", "desc")
     .get();
 
   return interviews.docs.map((doc) => ({
@@ -21,16 +23,19 @@ export async function getInerviewsByUserId(
 }
 
 export async function getLatestInterviews(
-  params: GetLatestInterviewsParams
+  params: GetLatestInterviewsParams,
 ): Promise<Interview[] | null> {
-  const { userId, limit = 20 } = params;
+  const { userId, limit: userLimit = 20 } = params;
+
+  if (!userId) return null;
 
   const interviews = await db
-    .collection('interviews')
-    .orderBy('createdAt', 'desc')
-    .where('finalized', '==', true)
-    .where('userId', '!=', userId)
-    .limit(limit)
+    .collection("interviews")
+    .where("finalized", "==", true)
+    .where("userId", "!=", userId)
+    .orderBy("userId")
+    .orderBy("createdAt", "desc")
+    .limit(userLimit)
     .get();
 
   return interviews.docs.map((doc) => ({
@@ -40,7 +45,7 @@ export async function getLatestInterviews(
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null> {
-  const interviews = await db.collection('interviews').doc(id).get();
+  const interviews = await db.collection("interviews").doc(id).get();
 
   return interviews.data() as Interview | null;
 }
@@ -52,23 +57,19 @@ export async function createFeedback(params: CreateFeedbackParams) {
     const formattedTranscript = transcript
       .map(
         (sentence: { role: string; content: string }) =>
-          `- ${sentence.role}: ${sentence.content}\n`
+          `- ${sentence.role}: ${sentence.content}\n`,
       )
-      .join('');
+      .join("");
 
     const {
-      object: {
-        totalScore,
-        categoryScores,
-        strengths,
-        areasForImprovement,
-        finalAssessment,
-      },
-    } = await generateObject({
-      model: google('gemini-2.0-flash-001', {
-        structuredOutputs: false,
-      }),
-      schema: feedbackSchema,
+      totalScore,
+      categoryScores,
+      strengths,
+      areasForImprovement,
+      finalAssessment,
+    }: any = await generateText({
+      model: google("gemini-3-flash-preview"),
+      output: Output.object({ schema: feedbackSchema }),
       prompt: `You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don;y be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
       Transcript:
       ${formattedTranscript}
@@ -80,10 +81,10 @@ export async function createFeedback(params: CreateFeedbackParams) {
       - **Cultural & Role Fir**: Alignment with company values and job role.
       - **Confidence & clarity**: Confidence in responses, engagement, and clarity.`,
       system:
-        'You are a professional interviewer analyzing a mock intervview. Your task is to evaluate the candidate based on structured categories',
+        "You are a professional interviewer analyzing a mock intervview. Your task is to evaluate the candidate based on structured categories",
     });
 
-    const feedback = await db.collection('feedback').add({
+    const feedback = await db.collection("feedback").add({
       interviewId,
       userId,
       totalScore,
@@ -99,7 +100,7 @@ export async function createFeedback(params: CreateFeedbackParams) {
       feedbackId: feedback.id,
     };
   } catch (error) {
-    console.error('Error saving feedback', error);
+    console.error("Error saving feedback", error);
     return {
       success: false,
     };
@@ -107,14 +108,14 @@ export async function createFeedback(params: CreateFeedbackParams) {
 }
 
 export async function getFeedbackByInterviewId(
-  params: GetFeedbackByInterviewIdParams
+  params: GetFeedbackByInterviewIdParams,
 ): Promise<Feedback | null> {
   const { userId, interviewId } = params;
 
   const feedback = await db
-    .collection('feedback')
-    .where('interviewId', '==', interviewId)
-    .where('userId', '==', userId)
+    .collection("feedback")
+    .where("interviewId", "==", interviewId)
+    .where("userId", "==", userId)
     .limit(1)
     .get();
 
