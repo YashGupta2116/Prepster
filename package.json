@@ -45,5 +45,8 @@
   },
   "overrides": {
     "jose": "4.15.9"
+  },
+  "engines": {
+    "node": ">=18 <21"
   }
 }
