@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { google } from "@ai-sdk/google";
+import { google } from "@/lib/utils";
 
 import { adminDb as db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
   try {
     const { text: questions } = await generateText({
-      model: google("gemini-2.0-flash-001"),
+      model: google("gemini-3-flash-preview"),
       prompt: `Prepare questions for a job interview.
         The job role is ${role}.
         The job experience level is ${level}.
