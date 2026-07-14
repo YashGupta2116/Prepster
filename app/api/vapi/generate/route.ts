@@ -1,44 +1,66 @@
 export const maxDuration = 60;
-import { generateText } from "ai";
-import { google } from "@/lib/utils";
-
 import { adminDb as db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
+import { z } from "zod";
+
+const questionsSchema = z.object({
+  questions: z.array(z.string()),
+});
 
 export async function POST(request: Request) {
-  const { type, role, level, techstack, amount, userid } = await request.json();
+  const { role, level, techstack, type, amount, userid } = await request.json();
 
   try {
-    const { text: questions } = await generateText({
-      model: google("gemini-3.5-flash"),
-      prompt: `Prepare questions for a job interview.
-        The job role is ${role}.
-        The job experience level is ${level}.
-        The tech stack used in the job is: ${techstack}.
-        The focus between behavioural and technical questions should lean towards: ${type}.
-        The amount of questions required is: ${amount}.
-        Please return only the questions, without any additional text.
-        The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters which might break the voice assistant.
-        Return the questions formatted like this:
-        ["Question 1", "Question 2", "Question 3"]
-        
-        Thank you! <3
-    `,
-    });
+    const start = performance.now();
+
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.1-8b-instruct",
+          provider: { order: ["Groq"], allow_fallbacks: true },
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "user",
+              content: `Prepare ${amount} interview questions for a job interview.
+              Role: ${role}. Level: ${level}. Tech stack: ${techstack}. Focus: ${type}.
+              These will be read aloud by a voice assistant — no slashes, asterisks, or special characters.
+              Respond with ONLY valid JSON in this exact shape: {"questions": ["Question 1", "Question 2"]}`,
+            },
+          ],
+        }),
+      },
+    );
+
+    const data = await response.json();
+    console.log("Served by:", data.provider);
+    console.log("OpenRouter latency:", performance.now() - start);
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || "OpenRouter request failed");
+    }
+
+    const raw = data.choices[0].message.content;
+    const parsed = questionsSchema.parse(JSON.parse(raw));
 
     const interview = {
-      role: role,
-      type: type,
-      level: level,
+      role,
+      type,
+      level,
       techstack: techstack.split(","),
-      questions: JSON.parse(questions),
+      questions: parsed.questions,
       userId: userid,
       finalized: true,
       coverImage: getRandomInterviewCover(),
       createdAt: new Date().toISOString(),
     };
 
-    console.log(interview?.questions);
     await db.collection("interviews").add(interview);
 
     return Response.json({ success: true }, { status: 200 });
