@@ -61,28 +61,74 @@ export async function createFeedback(params: CreateFeedbackParams) {
       )
       .join("");
 
+    const start = performance.now();
+
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.1-8b-instruct",
+          provider: { order: ["Groq"], allow_fallbacks: true },
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed. Do not be lenient — point out mistakes and areas for improvement clearly.",
+            },
+            {
+              role: "user",
+              content: `Transcript:
+${formattedTranscript}
+
+Score the candidate from 0 to 100 in exactly these five categories (use these exact names, do not add others):
+- Communication Skills: clarity, articulation, structured responses.
+- Technical Knowledge: understanding of key concepts for the role.
+- Problem-Solving: ability to analyze problems and propose solutions.
+- Cultural & Role Fit: alignment with company values and job role.
+- Confidence & Clarity: confidence in responses, engagement, and clarity.
+
+Respond with ONLY valid JSON in exactly this shape:
+{
+  "totalScore": number,
+  "categoryScores": [
+    { "name": "Communication Skills", "score": number, "comment": "string" },
+    { "name": "Technical Knowledge", "score": number, "comment": "string" },
+    { "name": "Problem-Solving", "score": number, "comment": "string" },
+    { "name": "Cultural & Role Fit", "score": number, "comment": "string" },
+    { "name": "Confidence & Clarity", "score": number, "comment": "string" }
+  ],
+  "strengths": ["string"],
+  "areasForImprovement": ["string"],
+  "finalAssessment": "string"
+}`,
+            },
+          ],
+        }),
+      },
+    );
+
+    const data = await response.json();
+    console.log("Served by:", data.provider);
+    console.log("OpenRouter feedback latency:", performance.now() - start);
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || "OpenRouter request failed");
+    }
+
+    const raw = data.choices[0].message.content;
     const {
       totalScore,
       categoryScores,
       strengths,
       areasForImprovement,
       finalAssessment,
-    }: any = await generateText({
-      model: google("gemini-3-flash-preview"),
-      output: Output.object({ schema: feedbackSchema }),
-      prompt: `You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don;y be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
-      Transcript:
-      ${formattedTranscript}
-      
-      Please score the candidate from 0 to 100 in the following area. Do not add categories other than the ones provided:
-      - **Communication Skills**: Calrity , articulation , structured responses.
-      - **Technical Knowlegde**: Understanding of the key concepts for the role.
-      - **Problem-Solving**: Ability to analyze problems and propose solutions.
-      - **Cultural & Role Fir**: Alignment with company values and job role.
-      - **Confidence & clarity**: Confidence in responses, engagement, and clarity.`,
-      system:
-        "You are a professional interviewer analyzing a mock intervview. Your task is to evaluate the candidate based on structured categories",
-    });
+    } = feedbackSchema.parse(JSON.parse(raw));
 
     const feedback = await db.collection("feedback").add({
       interviewId,
