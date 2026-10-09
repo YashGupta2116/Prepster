@@ -16,13 +16,6 @@ if (typeof globalThis.localStorage?.getItem !== "function") {
 }
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 };
 
 export default nextConfig;

@@ -10,7 +10,7 @@ const monaSans = Mona_Sans({
 
 export const metadata: Metadata = {
   title: 'Prepster',
-  description: 'An Ai-powered platform for preparing for mock interview',
+  description: 'An AI-powered platform for practicing mock interviews',
 };
 
 export default function RootLayout({

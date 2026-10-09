@@ -12,6 +12,7 @@ const InterviewCard = async ({
   type,
   techstack,
   createdAt,
+  coverImage,
 }: InterviewCardProps) => {
   const feedback =
     userId && id
@@ -31,7 +32,7 @@ const InterviewCard = async ({
             <p className="badge-text">{normalizedType}</p>
           </div>
           <Image
-            src={getRandomInterviewCover()}
+            src={coverImage || getRandomInterviewCover()}
             alt="cover-image"
             width={90}
             height={90}

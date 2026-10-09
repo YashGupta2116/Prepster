@@ -2,10 +2,10 @@
 
 import { feedbackSchema } from "@/constants";
 import { adminDb as db } from "@/firebase/admin";
-import { google } from "@/lib/utils";
-import { generateText, Output } from "ai";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { generateJson } from "@/lib/llm";
 
-export async function getInerviewsByUserId(
+export async function getInterviewsByUserId(
   userId: string,
 ): Promise<Interview[] | null> {
   if (!userId) return null;
@@ -29,61 +29,54 @@ export async function getLatestInterviews(
 
   if (!userId) return null;
 
+  // Firestore forces the first orderBy onto the field used in a `!=` filter,
+  // which would sort by userId instead of recency. So sort by date and drop
+  // the user's own interviews in memory.
   const interviews = await db
     .collection("interviews")
-    .where("finalized", "==", true)
-    .where("userId", "!=", userId)
-    .orderBy("userId")
     .orderBy("createdAt", "desc")
-    .limit(userLimit)
+    .limit(userLimit * 3)
     .get();
 
-  return interviews.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Interview[];
+  return interviews.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as Interview)
+    .filter((interview) => interview.finalized && interview.userId !== userId)
+    .slice(0, userLimit);
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null> {
-  const interviews = await db.collection("interviews").doc(id).get();
+  const doc = await db.collection("interviews").doc(id).get();
 
-  return interviews.data() as Interview | null;
+  return doc.exists ? ({ id: doc.id, ...doc.data() } as Interview) : null;
 }
 
 export async function createFeedback(params: CreateFeedbackParams) {
-  const { interviewId, userId, transcript } = params;
+  const { interviewId, transcript } = params;
+
+  // Identity comes from the session cookie, never from the client.
+  const user = await getCurrentUser();
+  if (!user) return { success: false };
+
+  // Nothing to evaluate if the candidate never spoke.
+  if (!transcript.some((message) => message.role === "user")) {
+    return { success: false };
+  }
 
   try {
     const formattedTranscript = transcript
-      .map(
-        (sentence: { role: string; content: string }) =>
-          `- ${sentence.role}: ${sentence.content}\n`,
-      )
+      .map((sentence) => `- ${sentence.role}: ${sentence.content}\n`)
       .join("");
 
-    const start = performance.now();
-
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
+    const feedback = await generateJson(
+      [
+        {
+          role: "system",
+          content:
+            "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed. Do not be lenient — point out mistakes and areas for improvement clearly.",
         },
-        body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct",
-          provider: { order: ["Groq"], allow_fallbacks: true },
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed. Do not be lenient — point out mistakes and areas for improvement clearly.",
-            },
-            {
-              role: "user",
-              content: `Transcript:
+        {
+          role: "user",
+          content: `Transcript:
 ${formattedTranscript}
 
 Score the candidate from 0 to 100 in exactly these five categories (use these exact names, do not add others):
@@ -107,69 +100,46 @@ Respond with ONLY valid JSON in exactly this shape:
   "areasForImprovement": ["string"],
   "finalAssessment": "string"
 }`,
-            },
-          ],
-        }),
-      },
+        },
+      ],
+      feedbackSchema,
     );
 
-    const data = await response.json();
-    console.log("Served by:", data.provider);
-    console.log("OpenRouter feedback latency:", performance.now() - start);
-
-    if (!response.ok) {
-      throw new Error(data.error?.message || "OpenRouter request failed");
-    }
-
-    const raw = data.choices[0].message.content;
-    const {
-      totalScore,
-      categoryScores,
-      strengths,
-      areasForImprovement,
-      finalAssessment,
-    } = feedbackSchema.parse(JSON.parse(raw));
-
-    const feedback = await db.collection("feedback").add({
+    const doc = await db.collection("feedback").add({
+      ...feedback,
       interviewId,
-      userId,
-      totalScore,
-      categoryScores,
-      strengths,
-      areasForImprovement,
-      finalAssessment,
+      userId: user.id,
       createdAt: new Date().toISOString(),
     });
 
-    return {
-      success: true,
-      feedbackId: feedback.id,
-    };
+    return { success: true, feedbackId: doc.id };
   } catch (error) {
     console.error("Error saving feedback", error);
-    return {
-      success: false,
-    };
+    return { success: false };
   }
 }
 
-export async function getFeedbackByInterviewId(
+// Newest first. Sorted in memory (a user has only a handful of attempts per
+// interview) so we don't need an extra composite Firestore index.
+export async function getFeedbacksByInterviewId(
   params: GetFeedbackByInterviewIdParams,
-): Promise<Feedback | null> {
+): Promise<Feedback[]> {
   const { userId, interviewId } = params;
 
   const feedback = await db
     .collection("feedback")
     .where("interviewId", "==", interviewId)
     .where("userId", "==", userId)
-    .limit(1)
     .get();
 
-  if (feedback.empty) return null;
+  return feedback.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as Feedback)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
 
-  const feedbackDoc = feedback.docs[0];
-  return {
-    id: feedbackDoc.id,
-    ...feedbackDoc.data(),
-  } as Feedback;
+export async function getFeedbackByInterviewId(
+  params: GetFeedbackByInterviewIdParams,
+): Promise<Feedback | null> {
+  const [latest] = await getFeedbacksByInterviewId(params);
+  return latest ?? null;
 }

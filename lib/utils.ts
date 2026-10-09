@@ -1,5 +1,4 @@
 import { interviewCovers, mappings } from "@/constants";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -16,7 +15,7 @@ const normalizeTechName = (tech: string) => {
 
 const checkIconExists = async (url: string) => {
   try {
-    const response = await fetch(url, { method: "HEAD" });
+    const response = await fetch(url, { method: "HEAD", next: { revalidate: 86400 } });
     return response.ok; // Returns true if the icon exists
   } catch {
     return false;
@@ -28,14 +27,16 @@ export const getTechLogos = async (techArray: string[]) => {
     const normalized = normalizeTechName(tech);
     return {
       tech,
-      url: `${techIconBaseURL}/${normalized}/${normalized}-original.svg`,
+      url: normalized
+        ? `${techIconBaseURL}/${normalized}/${normalized}-original.svg`
+        : null,
     };
   });
 
   const results = await Promise.all(
     logoURLs.map(async ({ tech, url }) => ({
       tech,
-      url: (await checkIconExists(url)) ? url : "/tech.svg",
+      url: url && (await checkIconExists(url)) ? url : "/tech.svg",
     })),
   );
 
@@ -46,7 +47,3 @@ export const getRandomInterviewCover = () => {
   const randomIndex = Math.floor(Math.random() * interviewCovers.length);
   return `/covers${interviewCovers[randomIndex]}`;
 };
-
-export const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});

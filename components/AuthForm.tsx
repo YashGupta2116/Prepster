@@ -27,6 +27,19 @@ const authFormSchema = (type: FormType) => {
   });
 };
 
+const authErrorMessage = (error: unknown) => {
+  switch ((error as { code?: string })?.code) {
+    case "auth/invalid-credential":
+      return "Incorrect email or password.";
+    case "auth/email-already-in-use":
+      return "An account with this email already exists. Please sign in.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Please try again later.";
+    default:
+      return "Something went wrong. Please try again.";
+  }
+};
+
 const AuthForm = ({ type }: { type: FormType }) => {
   const router = useRouter();
   const formSchema = authFormSchema(type);
@@ -58,7 +71,6 @@ const AuthForm = ({ type }: { type: FormType }) => {
           uid: userCredentials.user.uid,
           name: name!,
           email,
-          password,
         });
 
         if (!result?.success) {
@@ -79,10 +91,11 @@ const AuthForm = ({ type }: { type: FormType }) => {
           return;
         }
 
-        await signIn({
-          email,
-          idToken,
-        });
+        const signInResult = await signIn({ email, idToken });
+        if (!signInResult?.success) {
+          toast.error(signInResult?.message);
+          return;
+        }
 
         toast.success("Signed in successfully.");
         router.push("/");
@@ -102,17 +115,18 @@ const AuthForm = ({ type }: { type: FormType }) => {
           return;
         }
 
-        await signIn({
-          email,
-          idToken,
-        });
+        const signInResult = await signIn({ email, idToken });
+        if (!signInResult?.success) {
+          toast.error(signInResult?.message);
+          return;
+        }
 
         toast.success("Signed in successfully.");
         router.push("/");
       }
     } catch (error) {
-      console.log(error);
-      toast.error(`There was an error: ${error}`);
+      console.error(error);
+      toast.error(authErrorMessage(error));
     }
   }
 

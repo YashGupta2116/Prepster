@@ -1,3 +1,6 @@
+// Feedback generation runs as a server action on this route, so give it room.
+export const maxDuration = 60;
+
 import Agent from "@/components/Agent";
 import DisplayTechIcons from "@/components/DisplayTechIcons";
 import { getCurrentUser } from "@/lib/actions/auth.action";
@@ -20,7 +23,7 @@ const Page = async ({ params }: RouteParams) => {
         <div className="flex flex-row gap-4 items-center max-sm:flex-col">
           <div className="flex flex-row gap-4 items-center">
             <Image
-              src={getRandomInterviewCover()}
+              src={interview.coverImage || getRandomInterviewCover()}
               alt="cover-image"
               width={40}
               height={40}

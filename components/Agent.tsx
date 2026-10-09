@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { createVapi } from "@/lib/vapi.sdk";
 import { interviewer } from "@/constants";
 import { createFeedback } from "@/lib/actions/general.action";
+import { toast } from "sonner";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -32,6 +33,9 @@ const Agent = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [messages, setMessages] = useState<SavedMessage[]>([]);
+  // The effect below re-runs whenever messages change; this stops a late
+  // transcript from creating a second feedback document.
+  const hasFinishedRef = useRef(false);
 
   useEffect(() => {
     const vapi = createVapi();
@@ -51,7 +55,12 @@ const Agent = ({
     const onSpeechStart = () => setIsSpeaking(true);
     const onSpeechEnd = () => setIsSpeaking(false);
 
-    const onError = (error: Error) => console.log("Error", error);
+    const onError = (error: Error) => {
+      console.error("Vapi error", error);
+      toast.error("The call ran into a problem. Please try again.");
+      setCallStatus(CallStatus.INACTIVE);
+      setIsSpeaking(false);
+    };
 
     vapi.on("call-start", onCallStart);
     vapi.on("call-end", onCallEnd);
@@ -72,23 +81,28 @@ const Agent = ({
   }, []);
 
   const handleGenerateFeedback = async (messages: SavedMessage[]) => {
-    console.log("Generate feedback here.");
+    if (!messages.some((message) => message.role === "user")) {
+      toast.error("No answers were recorded, so there is nothing to evaluate.");
+      router.push("/");
+      return;
+    }
+
     const { success, feedbackId: id } = await createFeedback({
       interviewId: interviewId!,
-      userId: userId!,
       transcript: messages,
     });
 
     if (success && id) {
       router.push(`/interview/${interviewId}/feedback`);
     } else {
-      console.log("Error saving feedback.");
+      toast.error("Couldn't generate your feedback. Please try again.");
       router.push("/");
     }
   };
 
   useEffect(() => {
-    if (callStatus === CallStatus.FINISHED) {
+    if (callStatus === CallStatus.FINISHED && !hasFinishedRef.current) {
+      hasFinishedRef.current = true;
       if (type === "generate") {
         router.push("/");
       } else {
@@ -107,6 +121,16 @@ const Agent = ({
 
     setCallStatus(CallStatus.CONNECTING);
 
+    try {
+      await startCall(vapi);
+    } catch (error) {
+      console.error("Failed to start call", error);
+      toast.error("Couldn't start the call. Check your microphone and try again.");
+      setCallStatus(CallStatus.INACTIVE);
+    }
+  };
+
+  const startCall = async (vapi: NonNullable<typeof vapiRef.current>) => {
     if (type === "generate") {
       await vapi.start(
         undefined,
@@ -192,7 +216,9 @@ const Agent = ({
       )}
 
       <div className="w-full flex justify-center">
-        {callStatus !== "ACTIVE" ? (
+        {callStatus === CallStatus.FINISHED && type === "interview" ? (
+          <p className="animate-pulse">Generating your feedback...</p>
+        ) : callStatus !== "ACTIVE" ? (
           <button className="relative btn-call" onClick={handleCall}>
             <span
               className={cn(

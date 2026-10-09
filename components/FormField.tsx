@@ -1,7 +1,6 @@
 import React from "react";
 import {
   FormControl,
-  FormDescription,
   FormItem,
   FormLabel,
   FormMessage,
@@ -17,13 +16,12 @@ interface FormFieldProps<T extends FieldValues> {
   type?: "text" | "email" | "password" | "file";
 }
 
-const FormField = ({
+const FormField = <T extends FieldValues>({
   control,
   name,
   label,
   placeholder,
   type = "text",
-  // @ts-ignore
 }: FormFieldProps<T>) => (
   <Controller
     name={name}

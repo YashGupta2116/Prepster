@@ -24,7 +24,8 @@
 - **Next.js (TypeScript)** – Frontend + backend
 - **Tailwind CSS** + **Shadcn UI** – Modern, responsive UI
 - **Firebase** – Authentication and Firestore database
-- **Vapi.ai** – AI-powered voice interaction
+- **Vapi.ai** – Real-time voice interaction (speech-to-text, LLM, text-to-speech)
+- **OpenRouter (Llama 3.1 8B on Groq)** – Question generation and feedback scoring, validated with **Zod**
 
 ---
 

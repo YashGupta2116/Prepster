@@ -2,7 +2,7 @@ import RetakeInterviewButton from "@/components/RetakeInterviewButton";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import {
-  getFeedbackByInterviewId,
+  getFeedbacksByInterviewId,
   getInterviewById,
 } from "@/lib/actions/general.action";
 import dayjs from "dayjs";
@@ -18,10 +18,14 @@ const Page = async ({ params }: RouteParams) => {
   const interview = await getInterviewById(id);
   if (!interview) redirect("/");
 
-  const feedback = await getFeedbackByInterviewId({
-    interviewId: id!,
-    userId: user?.id!,
+  const [feedback, previous] = await getFeedbacksByInterviewId({
+    interviewId: id,
+    userId: user!.id,
   });
+
+  if (!feedback) redirect(`/interview/${id}`);
+
+  const scoreChange = previous ? feedback.totalScore - previous.totalScore : null;
 
   return (
     <section className="section-feedback">
@@ -40,9 +44,20 @@ const Page = async ({ params }: RouteParams) => {
             <p>
               Overall Impression:{" "}
               <span className="text-primary-200 font-bold">
-                {feedback?.totalScore}
+                {feedback.totalScore}
               </span>
               /100
+              {scoreChange !== null && (
+                <span
+                  className={
+                    scoreChange >= 0 ? "text-success-100" : "text-destructive-100"
+                  }
+                >
+                  {" "}
+                  ({scoreChange >= 0 ? "+" : ""}
+                  {scoreChange} vs last attempt)
+                </span>
+              )}
             </p>
           </div>
 
@@ -50,7 +65,7 @@ const Page = async ({ params }: RouteParams) => {
           <div className="flex flex-row gap-2">
             <Image src="/calendar.svg" width={22} height={22} alt="calendar" />
             <p>
-              {feedback?.createdAt
+              {feedback.createdAt
                 ? dayjs(feedback.createdAt).format("MMM D, YYYY h:mm A")
                 : "N/A"}
             </p>
@@ -60,12 +75,12 @@ const Page = async ({ params }: RouteParams) => {
 
       <hr />
 
-      <p>{feedback?.finalAssessment}</p>
+      <p>{feedback.finalAssessment}</p>
 
       {/* Interview Breakdown */}
       <div className="flex flex-col gap-4">
         <h2>Breakdown of the Interview:</h2>
-        {feedback?.categoryScores?.map((category, index) => (
+        {feedback.categoryScores?.map((category, index) => (
           <div key={index}>
             <p className="font-bold">
               {index + 1}. {category.name} ({category.score}/100)
@@ -78,7 +93,7 @@ const Page = async ({ params }: RouteParams) => {
       <div className="flex flex-col gap-3">
         <h3>Strengths</h3>
         <ul>
-          {feedback?.strengths?.map((strength, index) => (
+          {feedback.strengths?.map((strength, index) => (
             <li key={index}>{strength}</li>
           ))}
         </ul>
@@ -87,7 +102,7 @@ const Page = async ({ params }: RouteParams) => {
       <div className="flex flex-col gap-3">
         <h3>Areas for Improvement</h3>
         <ul>
-          {feedback?.areasForImprovement?.map((area, index) => (
+          {feedback.areasForImprovement?.map((area, index) => (
             <li key={index}>{area}</li>
           ))}
         </ul>
